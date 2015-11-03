@@ -5,7 +5,7 @@
 # 
 # Superbrain v0.1: working input and gamestate
 # Superbrain v0.2: working comparison and output
-__author__ = "6192860: Georg Schuhardt"
+__author__ = 
 
 
 from random import *
