@@ -9,6 +9,7 @@
 # Superbrain v0.2: working comparison and output
 # Superbrain v0.3: working colours / shapes, OS independent
 # Superbrain v0.4: objectified
+# Superbrain v0.5: working linux in- and output, slight control issues
 __author__ = " "
 
 
@@ -61,16 +62,16 @@ class Superbrain(object):
         self.__rnd_code = self.__rnd_fill(4, 4, 4)
         if self.__cheat:
             print(self.__rnd_code)
-        self.__tries.clear()
+        self.__tries = [[[1,1],[2,2],[3,3],[4,4]]]
         self.__solved = 0
+        print('\033[2J')
 
-    def __is_playable(self):
+    def __is_playable(self, quit=0):
         """ Return 0 when solved or no tries are left. Return 1 otherwise."""
-        if len(self.__tries) < self.__max_tries and (
-                not self.__solved):
-            return 1
-        else:
+        if len(self.__tries) >= self.__max_tries or (self.__solved) or quit:
             return 0
+        else:
+            return 1
 
     def __rnd_fill(self, colours, shapes, stones):
         """ Generate the random code, return the list. """
@@ -114,9 +115,7 @@ class Superbrain(object):
                         elif self.__rnd_code[bracket][i] == test_solution[bracket][i]:
                             right_shape += 1
 
-            self.__code_hint[0],
-            self.__code_hint[1],
-            self.__code_hint[2] = right_guess, right_colour, right_shape
+            self.__code_hint[0], self.__code_hint[1], self.__code_hint[2] =                       right_guess, right_colour, right_shape
 
     def __colourise(self, array):
         """ Convert the input into colours / shapes or their alternative. """
@@ -136,9 +135,9 @@ class Superbrain(object):
         return colour + shape + '\033[0m'
 
     def __update_UI(self):
-        """ Output all tries, if won or otherwise hints. """
+        """ Print all tries, if won and otherwise hints. """
         for unsuccessful in self.__tries:
-            print(
+            print('\033['+str(len(self.__tries)+3)+';10H',
                 self.__colourise(unsuccessful[0]),
                 self.__colourise(unsuccessful[1]),
                 self.__colourise(unsuccessful[2]),
@@ -147,20 +146,21 @@ class Superbrain(object):
         if self.__solved:
             print("You won!")
         else:
-            print(
-                "R %s, C %s, F %s, tries left: %s" % (
-                    self.__code_hint[0],
-                    self.__code_hint[1],
-                    self.__code_hint[2],
-                    self.__max_tries - len(self.__tries)))
+            position = str(len(self.__tries)+3)
+            position_str = '\033['+position+';7H {0} \033['+position+';20H R {1}, C {2}, S {3}'
+            print(position_str.format(self.__max_tries - len(self.__tries), self.__code_hint[0], self.__code_hint[1], self.__code_hint[2]))
+        self.__tries.append([[1,1],[2,2],[3,3],[4,4]])
 
+
+
+##########
     if not no_shapes:
         def __getchar(self):
             fd = sys.stdin.fileno()
             old_settings = termios.tcgetattr(fd)
             try:
                 tty.setraw(sys.stdin.fileno())
-                ch = sys.stdin.read(3)
+                ch = sys.stdin.read(1)
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             return ch
@@ -170,39 +170,53 @@ class Superbrain(object):
         "\u2660", "\u2663", "\u2665", "\u2666"]
     colours = [
             "\033[94;2m  \033[0m", "\033[43;2m  \033[0m", "\033[41;2m  \033[0m",
-            "\033[41;2m  \033[0m", "\033[44;2m  \033[0m", "\033[42;2m  \033[0m",
-            "\033[46;2m  \033[0m", "\033[45;2m  \033[0m"]
+            "\033[44;2m  \033[0m", "\033[42;2m  \033[0m", "\033[46;2m  \033[0m",
+            "\033[45;2m  \033[0m"]
 
+    a = 0
+    __bracket = 0
 
     def __get_input(self):
         """ Query the user for input. """
-        nope = 0
+        nope = 1
+        meh_test = 1
         # if not no_shapes:
-        a = 0
-        b = 0
-        while True:
-            k = self.__getchar()
-            if k != '':
+        test_position = len(self.__tries)
+        print('\033[2;8HT  1 2 3 4\033['+str(test_position+2)+';10H',self.__colourise(self.__tries[-1][0]),
+                self.__colourise(self.__tries[-1][1]),
+                self.__colourise(self.__tries[-1][2]),
+                self.__colourise(self.__tries[-1][3]))
+        while meh_test:
+            while meh_test:
+                k = self.__getchar()
+                if k != '':
+                    break
+            if k == 'c':
+                self.__tries[-1][self.__bracket][0] = self.__tries[-1][self.__bracket][0]%4 + 1
+            elif k == 'f':
+                self.__tries[-1][self.__bracket][1] = self.__tries[-1][self.__bracket][1]%4 + 1
+            elif k == 'r':
+                self.__reset_game()
+            elif k == 'g':
+                continue
+            elif k == 'q':
                 break
-            if k == '\x1b[A':
-                a += 1
-            elif k == '\x1b[B':
-                a -= 1
-            elif k == '\x1b[C':
-                b += 1
-            elif k == '\x1b[D':
-                b -= 1
-            elif k == 'ccc':
-                print("c")
+            elif k == '1' or k == '2' or k == '3' or k == '4':
+                self.__bracket = int(k) - 1
             else:
-                print("not an arrow key!: ", k)
-            print(symbols[a])
-            print(colours[b])
+                print("\033[10;4H 1/2/3/4 for the stone\n\033[4C(c)olour rotation\n\033[4C(s)hape rotation\n\033[4C(g)uess\n\033[4C(r)estart or (q)uit")
+
+            print('\033[3;10H',self.__colourise(self.__tries[-1][0]),
+                self.__colourise(self.__tries[-1][1]),
+                self.__colourise(self.__tries[-1][2]),
+                self.__colourise(self.__tries[-1][3])+' ')
+
+
 
 
         #self.__tries.append(eval(input("Try your best!:\n")))
 
-        if nope:
+        if nope:	
             self.__compare_solution(self.__tries[-1])
             self.__update_UI()
         else:
