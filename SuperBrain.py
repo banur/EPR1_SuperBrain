@@ -30,7 +30,7 @@ except ImportError:
 
 class game_state:
     __rnd_code = []
-    __code_hint = []    # colour - shape - both right
+    __code_hint = [0, 0, 0]    # colour - shape - both right
     __tries = []
     __max_tries = 8
     __solved = 0
@@ -51,11 +51,11 @@ class game_state:
         game_state.__rnd_code = game_state.rnd_fill(4, 4, 4)
         if game_state.__cheat:
             print(game_state.__rnd_code)
-        game_state.__tries = []
+        game_state.__tries.clear
         game_state.__solved = 0
 
     def is_playable():
-        if len(game_state.__tries) <= game_state.__max_tries and (
+        if len(game_state.__tries) < game_state.__max_tries and (
                 not game_state.__solved):
             return 1
         else:
@@ -84,6 +84,13 @@ class game_state:
                 shapes_list.remove(rnd_shape)
             return rnd_list
 
+    def compare_solution(test_solution):
+        if test_solution == game_state.__rnd_code:
+            print("great")
+            game_state.__solved = 1
+        else:
+            game_state.hints(test_solution)
+
     def hints(test_solution):
         right_guess = 0
         right_colour = 0
@@ -104,20 +111,6 @@ class game_state:
         game_state.__code_hint[0], game_state.__code_hint[
             1], game_state.__code_hint[2] = right_guess, right_colour, right_shape
 
-    def compare_solution(test_solution):
-        if test_solution == game_state.__rnd_code:
-            print("great")
-            game_state.__solved = 1
-        else:
-            game_state.__tries -= 1
-            game_state.hints(test_solution)
-            print(
-                "R %s, C %s, F %s, tries left: %s" %
-                (game_state.__code_hint[0],
-                 game_state.__code_hint[1],
-                 game_state.__code_hint[2],
-                 game_state.__tries))
-
     def colourise(array):
         colour = 0
         shape = 0
@@ -135,17 +128,86 @@ class game_state:
         return colour + shape + '\033[0m'
 
     def update_UI():
+        for unsuccessful in game_state.__tries:
+            print(
+                game_state.colourise(
+                    unsuccessful[0]), game_state.colourise(
+                    unsuccessful[1]), game_state.colourise(
+                    unsuccessful[2]), game_state.colourise(
+                        unsuccessful[3]))
         print(
-            game_state.colourise(
-                game_state.__player_input[0]), game_state.colourise(
-                game_state.__player_input[1]), game_state.colourise(
-                game_state.__player_input[2]), game_state.colourise(
-                    game_state.__player_input[3]))
+            "R %s, C %s, F %s, tries left: %s" %
+            (game_state.__code_hint[0],
+             game_state.__code_hint[1],
+             game_state.__code_hint[2],
+             game_state.__max_tries - len(game_state.__tries)))
+###########################
+# experimental
+    symbols = [
+        "\u25B2",
+        "\u25C6",
+        "\u25CF",
+        "\u2605",
+        "\u2660",
+        "\u2663",
+        "\u2665",
+        "\u2666"]
+    colours = [
+        "\033[94;2m  \033[0m",
+        "\033[43;2m  \033[0m",
+        "\033[41;2m  \033[0m",
+        "\033[41;2m  \033[0m",
+        "\033[44;2m  \033[0m",
+        "\033[42;2m  \033[0m",
+        "\033[46;2m  \033[0m",
+        "\033[45;2m  \033[0m"]
+
+    def _Getch():
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(3)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+    list_position = 0
+    colours = 0
+
+    def get():
+        inkey = _Getch()
+        while(1):
+            k = inkey()
+            if k != '':
+                break
+        if k == '\x1b[A':
+            status.list_position += 1
+        elif k == '\x1b[B':
+            status.list_position -= 1
+        elif k == '\x1b[C':
+            status.colours += 1
+        elif k == '\x1b[D':
+            status.colours -= 1
+        elif k == 'c':
+            print("c")
+        else:
+            print("not an arrow key!: ", k)
+
+
+##################################
 
     def get_input():
-        game_state.__player_input = eval(input("Try your best!:\n"))
-        game_state.compare_solution(game_state.__player_input)
-        game_state.update_UI()
+        nope = 1
+       # if not no_shapes:
+
+        game_state.__tries.append(eval(input("Try your best!:\n")))
+
+        if nope:
+            game_state.compare_solution(game_state.__tries[-1])
+            game_state.update_UI()
+        else:
+            print("invalid input, use [[], [], [], []] - or run on linux")
 
 play_again = "y"
 
