@@ -7,7 +7,7 @@
 #
 # Superbrain v0.1: working input and gamestate
 # Superbrain v0.2: working comparison and output
-__author__ = ""
+__author__ = " "
 
 
 from random import choice as random_choice
@@ -17,9 +17,9 @@ no_shapes = 0
 try:
     import colorama
 except ImportError:
-	no_colours = 1
+    no_colours = 1
 
-try: 
+try:
     import sys
     import tty
     import termios
@@ -30,9 +30,13 @@ except ImportError:
 
 class game_state:
     __rnd_code = []
-    __code_hint = [[], [], []]    # colour - shape - both right
-    __tries = 8
+    __code_hint = []    # colour - shape - both right
+    __tries = []
+    __max_tries = 8
     __solved = 0
+# hax! ########
+    __cheat = 1  # set to 0
+###############
 
     __d_colour = {
         1: '\033[31;1m',
@@ -45,13 +49,14 @@ class game_state:
 
     def reset_game():
         game_state.__rnd_code = game_state.rnd_fill(4, 4, 4)
-        game_state.__player_input = game_state.rnd_fill(4, 4, 4)
-        print(game_state.__rnd_code)
-        game_state.__tries = 8
+        if game_state.__cheat:
+            print(game_state.__rnd_code)
+        game_state.__tries = []
         game_state.__solved = 0
 
     def is_playable():
-        if game_state.__tries and (not game_state.__solved):
+        if len(game_state.__tries) <= game_state.__max_tries and (
+                not game_state.__solved):
             return 1
         else:
             return 0
@@ -122,9 +127,9 @@ class game_state:
         else:
             colour = game_state.__d_alt_colour[array[0]]
 
-	if not no_shapes:
+        if not no_shapes:
             shape = game_state.__d_shape[array[1]]
-	else:
+        else:
             shape = game_state.__d_alt_shape[array[1]]
 
         return colour + shape + '\033[0m'
