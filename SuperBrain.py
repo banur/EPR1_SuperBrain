@@ -10,6 +10,7 @@
 # Superbrain v0.3: working colours / shapes, OS independent
 # Superbrain v0.4: objectified
 # Superbrain v0.5: working linux in- and output, slight control issues
+# Superbrain v0.6: working windows in- and output, help text
 __author__ = " "
 
 
@@ -17,10 +18,30 @@ from random import choice as random_choice
 no_colours = 0
 no_shapes = 0
 
+
+def install_and_import(package):
+    import importlib
+    try:
+        importlib.import_module(package)
+    except ImportError:
+        import pip
+        pip.main(['install', package])
+    finally:
+        globals()[package] = importlib.import_module(package)
+
+install_and_import('colorama')
+
 try:
-    import colorama
-except ImportError:
-    no_colours = 1
+	import re
+except:
+	pass
+
+colorama.init()
+"""try:
+	
+except:
+	print("no_colours!")
+	no_colours = 1"""
 
 try:
     import sys
@@ -33,8 +54,8 @@ except ImportError:
 
 class Superbrain(object):
 
-    __cheat = 1  # set to 0
-
+    __cheat = 0  # set to 0
+    __play_again = "y"
     __rnd_code = []
     # colour - shape - both right
     __code_hint = [0, 0, 0]
@@ -43,32 +64,30 @@ class Superbrain(object):
     __solved = 0
     # red, green, yellow, magenta
     __d_colour = {1: '\033[31;1m', 2: '\033[32;1m', 3: '\033[33;1m',
-                  4: '\033[35;1m'}
-    __d_alt_colour = {1: 'red ', 2: 'green ', 3: 'yellow ', 4: 'magenta '}
+                  4: '\033[35;1m', 5: '\u001E\033[0m'}
+    __d_alt_colour = {1: 'r', 2: 'g', 3: 'y', 4: 'm', 5:""}
     # hearts, clubs, spades, diamonds __OR__ %, # !, &
     __d_shape = {1: '\u2665', 2: '\u2663', 3: '\u2660', 4: '\u2666'}
-    __d_alt_shape = {1: '\u0025', 2: '\u0023', 3: '\u0021', 4: '\u0026'}
+    __d_alt_shape = {1: '\u0025', 2: '\u0024', 3: '\u0021', 4: '\u0026'}
 
     def start_game(self):
-        play_again = "y"
-        while play_again == "y":
+        while self.__play_again == "y":
             self.__reset_game()
             while self.__is_playable():
                 self.__get_input()
-            play_again = input("play again? [y/n] ")
+                self.__compare_solution(self.__tries[-1])
+                self.__update_UI()
 
     def __reset_game(self):
         """Reset the game."""
         self.__rnd_code = self.__rnd_fill(4, 4, 4)
-        if self.__cheat:
-            print(self.__rnd_code)
-        self.__tries = [[[1,1],[2,2],[3,3],[4,4]]]
+        self.__build_UI()
         self.__solved = 0
-        print('\033[2J')
+        self.__tries = [[[1, 1], [2, 2], [3, 3], [4, 4]]]
 
-    def __is_playable(self, quit=0):
+    def __is_playable(self):
         """ Return 0 when solved or no tries are left. Return 1 otherwise."""
-        if len(self.__tries) >= self.__max_tries or (self.__solved) or quit:
+        if len(self.__tries) > self.__max_tries or (self.__solved):
             return 0
         else:
             return 1
@@ -104,7 +123,6 @@ class Superbrain(object):
             right_shape = 0
 
             for bracket in range(len(self.__rnd_code)):
-
                 if self.__rnd_code[bracket] == test_solution[bracket]:
                     right_guess += 1
                 else:
@@ -115,42 +133,66 @@ class Superbrain(object):
                         elif self.__rnd_code[bracket][i] == test_solution[bracket][i]:
                             right_shape += 1
 
-            self.__code_hint[0], self.__code_hint[1], self.__code_hint[2] =                       right_guess, right_colour, right_shape
+            self.__code_hint[0], self.__code_hint[1], self.__code_hint[
+                2] = right_guess, right_colour, right_shape
 
     def __colourise(self, array):
         """ Convert the input into colours / shapes or their alternative. """
         colour = 0
         shape = 0
+        coloured_result = ""
+        for bracket in array:
+            if no_colours:
+                colour = self.__d_alt_colour[bracket[0]]
+            else:
+                colour = self.__d_colour[bracket[0]]
 
-        if not no_colours:
-            colour = self.__d_colour[array[0]]
-        else:
-            colour = self.__d_alt_colour[array[0]]
+            if no_shapes:
+                shape = self.__d_alt_shape[bracket[1]]
+            else:
+                shape = self.__d_shape[bracket[1]]
 
-        if not no_shapes:
-            shape = self.__d_shape[array[1]]
-        else:
-            shape = self.__d_alt_shape[array[1]]
+            coloured_result += colour + shape + '\033[0m '
+            
+        return coloured_result
 
-        return colour + shape + '\033[0m'
+    def __build_UI(self):
+        UI_elements = {"clear":'\033[2J',
+                       "header":'\033[3;8HT  1 2 3 4  |  R  C  S',
+                       "intro":"\033[13;3HTry your best!"}
+        print(UI_elements["clear"],UI_elements["header"], UI_elements["intro"])
+        if self.__cheat:
+            print("\033[3;33H{0}\033[13;1H".
+            format(self.__colourise(self.__rnd_code)))
+        
+    def __cheat(self):
+        print("\033[3;33H{0}\033[14;1H\033[2K\033[13;1H".
+        format(self.__colourise(self.__rnd_code)))
+            
 
     def __update_UI(self):
         """ Print all tries, if won and otherwise hints. """
-        for unsuccessful in self.__tries:
-            print('\033['+str(len(self.__tries)+3)+';10H',
-                self.__colourise(unsuccessful[0]),
-                self.__colourise(unsuccessful[1]),
-                self.__colourise(unsuccessful[2]),
-                self.__colourise(unsuccessful[3]))
+        
+        print('\033[' + str(len(self.__tries) + 3) + ';10H',
+                self.__colourise(self.__tries[-1]))
 
-        if self.__solved:
-            print("You won!")
+        if not self.__solved or (self.__max_tries - len(self.__tries)) > 0:
+            position = str(len(self.__tries) + 3)
+            position_str = '\033[' + position + \
+                ';7H {0} \033[' + position + ';20H|  {1}  {2}  {3}'
+            print(position_str.format(self.__max_tries - len(self.__tries) + 1,
+                                      self.__code_hint[0], self.__code_hint[1],
+                                      self.__code_hint[2]))
         else:
-            position = str(len(self.__tries)+3)
-            position_str = '\033['+position+';7H {0} \033['+position+';20H R {1}, C {2}, S {3}'
-            print(position_str.format(self.__max_tries - len(self.__tries), self.__code_hint[0], self.__code_hint[1], self.__code_hint[2]))
-        self.__tries.append([[1,1],[2,2],[3,3],[4,4]])
-
+            if self.__solved:
+                print("\033[19;25HYou won!")
+            print("\033[20;25Hplay again? [y/n]\033[3;33H{0}\033[13;1H")
+            self.__play_again = input()
+        
+        print('\033[14;1H\033[2K\033[13;1H')
+        
+# should not be here
+        self.__tries.append([[1, 1], [2, 2], [3, 3], [4, 4]])
 
 
 ##########
@@ -165,65 +207,102 @@ class Superbrain(object):
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             return ch
 
-    symbols = [
-        "\u25B2", "\u25C6", "\u25CF", "\u2605",
-        "\u2660", "\u2663", "\u2665", "\u2666"]
-    colours = [
+        symbols = [
+            "\u25B2", "\u25C6", "\u25CF", "\u2605",
+            "\u2660", "\u2663", "\u2665", "\u2666"]
+        colours = [
             "\033[94;2m  \033[0m", "\033[43;2m  \033[0m", "\033[41;2m  \033[0m",
             "\033[44;2m  \033[0m", "\033[42;2m  \033[0m", "\033[46;2m  \033[0m",
             "\033[45;2m  \033[0m"]
 
-    a = 0
-    __bracket = 0
+        a = 0
+        __bracket = 0
+
+    def __help(self):
+        if no_shapes:
+            help_text = "\033[6;33HThis is the less comfortable version.\
+                  \033[7;33HTry running with Unicode and proper terminal."
+            if no_colours:
+                colour = self.__d_alt_colour
+            else:
+                colour = self.__d_colour
+            shape = self.__d_alt_shape
+        else:
+            colour = self.__d_colour
+            shape = self.__d_shape
+        
+        help_text += "\033[9;33HInput a single line of eight numbers,\
+                  \033[10;33Halternating colour and shape.\
+                  \033[12;33H1: {0}{8}, 2: {1}{8}, 3: {2}{8}, 4: {3}{8}\
+                  \033[13;33H1: {4}, 2: {5}, 3: {6}, 4: {7}\
+                  \033[15;33HThus 11223344 results in {9}\
+                  \033[14;1H\033[2K\033[13;1H"
+        print(help_text.format(colour[1], colour[2], colour[3], colour[4],
+                  shape[1], shape[2], shape[3], shape[4], colour[5],
+                  self.__colourise([[1,1],[2,2],[3,3],[4,4]])))
+
+    def __fallback_input(self):
+        """ Take an input string and convert to the input list."""
+        not_empty = 1
+        while not_empty:
+            user_input = input()
+            
+            if user_input == "help":
+                self.__help()
+            elif user_input == "new":
+                self.__reset_game()
+            elif user_input == "quit":
+                exit()
+            elif user_input == "IDDQD":
+                self.__cheat()
+            else:
+                user_input = re.sub("[^1-4]", "", user_input)
+                if len(user_input) == 8:
+                    for num_bracket in range(len(self.__tries[-1])):
+                        self.__tries[-1][num_bracket][0] = int(list(user_input[:2])[:1][0])
+                        self.__tries[-1][num_bracket][1] = int(list(user_input[:2])[1:][0])
+                        user_input = user_input[2:]
+                    not_empty = 0
+                else:
+                    self.__help()
+
+    def __complex_input(self):
+        nope = 1
+        meh_test = 1
+        test_position = len(self.__tries)
+        print('\033[2;8HT  1 2 3 4\033[' + str(test_position + 2) + ';10H', self.__colourise(self.__tries[-1]))
+        if not no_shapes:
+            while meh_test:
+                while meh_test:
+                    k = self.__getchar()
+                    if k != '':
+                        break
+                if k == 'c':
+                    self.__tries[-1][self.__bracket][
+                        0] = self.__tries[-1][self.__bracket][0] % 4 + 1
+                elif k == 'f':
+                    self.__tries[-1][self.__bracket][
+                        1] = self.__tries[-1][self.__bracket][1] % 4 + 1
+                elif k == 'r':
+                    self.__reset_game()
+                elif k == 'g':
+                    continue
+                elif k == 'q':
+                    exit()
+                elif k == '1' or k == '2' or k == '3' or k == '4':
+                    self.__bracket = int(k) - 1
+                else:
+                    print(
+                        "\033[10;4H 1/2/3/4 for the stone\n\033[4C(c)olour rotation\n\033[4C(s)hape rotation\n\033[4C(g)uess\n\033[4C(r)estart or (q)uit")
+
+                print('\033[3;10H', self.__colourise(self.__tries[-1]) + ' ')
 
     def __get_input(self):
         """ Query the user for input. """
-        nope = 1
-        meh_test = 1
-        # if not no_shapes:
-        test_position = len(self.__tries)
-        print('\033[2;8HT  1 2 3 4\033['+str(test_position+2)+';10H',self.__colourise(self.__tries[-1][0]),
-                self.__colourise(self.__tries[-1][1]),
-                self.__colourise(self.__tries[-1][2]),
-                self.__colourise(self.__tries[-1][3]))
-        while meh_test:
-            while meh_test:
-                k = self.__getchar()
-                if k != '':
-                    break
-            if k == 'c':
-                self.__tries[-1][self.__bracket][0] = self.__tries[-1][self.__bracket][0]%4 + 1
-            elif k == 'f':
-                self.__tries[-1][self.__bracket][1] = self.__tries[-1][self.__bracket][1]%4 + 1
-            elif k == 'r':
-                self.__reset_game()
-            elif k == 'g':
-                continue
-            elif k == 'q':
-                break
-            elif k == '1' or k == '2' or k == '3' or k == '4':
-                self.__bracket = int(k) - 1
-            else:
-                print("\033[10;4H 1/2/3/4 for the stone\n\033[4C(c)olour rotation\n\033[4C(s)hape rotation\n\033[4C(g)uess\n\033[4C(r)estart or (q)uit")
-
-            print('\033[3;10H',self.__colourise(self.__tries[-1][0]),
-                self.__colourise(self.__tries[-1][1]),
-                self.__colourise(self.__tries[-1][2]),
-                self.__colourise(self.__tries[-1][3])+' ')
-
-
-
-
-        #self.__tries.append(eval(input("Try your best!:\n")))
-
-        if nope:	
-            self.__compare_solution(self.__tries[-1])
-            self.__update_UI()
+        if not no_shapes:
+            self.__complex_input()
         else:
-            print("invalid input, use [[], [], [], []] - or run on linux")
-
-
-
+            self.__fallback_input()
 
 
 new_game = Superbrain().start_game()
