@@ -11,12 +11,15 @@
 # Superbrain v0.4: objectified
 # Superbrain v0.5: working linux in- and output, slight control issues
 # Superbrain v0.6: working windows in- and output, help text
+# Superbrain v0.7: fixed logic issue
 __author__ = " "
 
 
 from random import choice as random_choice
-no_colours = 0
+import re
+no_colours = 1
 no_shapes = 0
+install_loop = ""
 
 
 def install_and_import(package):
@@ -29,19 +32,17 @@ def install_and_import(package):
     finally:
         globals()[package] = importlib.import_module(package)
 
-install_and_import('colorama')
-
-try:
-	import re
-except:
-	pass
-
-colorama.init()
-"""try:
-	
-except:
-	print("no_colours!")
-	no_colours = 1"""
+while no_colours:
+    install_and_import('colorama')
+    try:
+        colorama.init()
+        no_colours = 0
+    except:
+        print("Please install colorama.\nEither connect to the Internet and run\
+ again or install\nmanually from https://pypi.python.org/pypi/colorama")
+        install_loop = input("\nTry again? ('q' to quit)\n")
+    if install_loop == "q":
+        exit()
 
 try:
     import sys
@@ -51,10 +52,9 @@ try:
 except ImportError:
     no_shapes = 1
 
-
 class Superbrain(object):
 
-    __cheat = 0  # set to 0
+    __cheat_enabled = 0  # set to 0
     __play_again = "y"
     __rnd_code = []
     # colour - shape - both right
@@ -159,15 +159,20 @@ class Superbrain(object):
     def __build_UI(self):
         UI_elements = {"clear":'\033[2J',
                        "header":'\033[3;8HT  1 2 3 4  |  R  C  S',
-                       "intro":"\033[13;3HTry your best!"}
-        print(UI_elements["clear"],UI_elements["header"], UI_elements["intro"])
-        if self.__cheat:
-            print("\033[3;33H{0}\033[13;1H".
+                       "intro":"\033[13;3HTry your best!",
+                       "options":"\033[22;25Hoptions: help, new, exit"}
+        print(UI_elements["clear"],UI_elements["header"], UI_elements["intro"],
+        UI_elements["options"])
+        print("\033[13;1H")
+        if self.__cheat_enabled:
+            print("\033[14;1H\033[2K\033[13;1H".
             format(self.__colourise(self.__rnd_code)))
         
     def __cheat(self):
-        print("\033[3;33H{0}\033[14;1H\033[2K\033[13;1H".
+        print("\033[3;33H{0}".
         format(self.__colourise(self.__rnd_code)))
+        print("\033[14;1H\033[2K\033[13;1H")
+        self.__cheat_enabled = 1
             
 
     def __update_UI(self):
@@ -176,52 +181,33 @@ class Superbrain(object):
         print('\033[' + str(len(self.__tries) + 3) + ';10H',
                 self.__colourise(self.__tries[-1]))
 
-        if not self.__solved or (self.__max_tries - len(self.__tries)) > 0:
-            position = str(len(self.__tries) + 3)
-            position_str = '\033[' + position + \
+        position = str(len(self.__tries) + 3)
+        position_str = '\033[' + position + \
                 ';7H {0} \033[' + position + ';20H|  {1}  {2}  {3}'
-            print(position_str.format(self.__max_tries - len(self.__tries) + 1,
-                                      self.__code_hint[0], self.__code_hint[1],
-                                      self.__code_hint[2]))
-        else:
-            if self.__solved:
-                print("\033[19;25HYou won!")
-            print("\033[20;25Hplay again? [y/n]\033[3;33H{0}\033[13;1H")
+        print(position_str.format(self.__max_tries - len(self.__tries) + 1,
+                                  self.__code_hint[0], self.__code_hint[1],
+                                  self.__code_hint[2]))
+        if self.__solved:
+            print("\033[19;25HYou won!")
+        elif (self.__max_tries - len(self.__tries)) <= 0:
+            print("\033[19;25HBetter luck next time!")
+        if self.__solved or (self.__max_tries - len(self.__tries)) <= 0:
+            print("\033[20;25Hplay again? [y/n]\033[14;1H\033[2K\033[13;1H")
             self.__play_again = input()
         
         print('\033[14;1H\033[2K\033[13;1H')
-        
-# should not be here
         self.__tries.append([[1, 1], [2, 2], [3, 3], [4, 4]])
-
-
-##########
-    if not no_shapes:
-        def __getchar(self):
-            fd = sys.stdin.fileno()
-            old_settings = termios.tcgetattr(fd)
-            try:
-                tty.setraw(sys.stdin.fileno())
-                ch = sys.stdin.read(1)
-            finally:
-                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-            return ch
-
-        symbols = [
-            "\u25B2", "\u25C6", "\u25CF", "\u2605",
-            "\u2660", "\u2663", "\u2665", "\u2666"]
-        colours = [
-            "\033[94;2m  \033[0m", "\033[43;2m  \033[0m", "\033[41;2m  \033[0m",
-            "\033[44;2m  \033[0m", "\033[42;2m  \033[0m", "\033[46;2m  \033[0m",
-            "\033[45;2m  \033[0m"]
-
-        a = 0
-        __bracket = 0
 
     def __help(self):
         if no_shapes:
             help_text = "\033[6;33HThis is the less comfortable version.\
-                  \033[7;33HTry running with Unicode and proper terminal."
+                  \033[7;33HTry running with Unicode and proper terminal.\
+                  \033[9;33HInput a single line of eight numbers,\
+                  \033[10;33Halternating colour and shape.\
+                  \033[12;33H1: {0}{8}, 2: {1}{8}, 3: {2}{8}, 4: {3}{8}\
+                  \033[13;33H1: {4}, 2: {5}, 3: {6}, 4: {7}\
+                  \033[15;33HThus 11223344 results in {9}\
+                  \033[14;1H\033[2K\033[13;1H"
             if no_colours:
                 colour = self.__d_alt_colour
             else:
@@ -231,16 +217,11 @@ class Superbrain(object):
             colour = self.__d_colour
             shape = self.__d_shape
         
-        help_text += "\033[9;33HInput a single line of eight numbers,\
-                  \033[10;33Halternating colour and shape.\
-                  \033[12;33H1: {0}{8}, 2: {1}{8}, 3: {2}{8}, 4: {3}{8}\
-                  \033[13;33H1: {4}, 2: {5}, 3: {6}, 4: {7}\
-                  \033[15;33HThus 11223344 results in {9}\
-                  \033[14;1H\033[2K\033[13;1H"
+        help_text += ""
         print(help_text.format(colour[1], colour[2], colour[3], colour[4],
                   shape[1], shape[2], shape[3], shape[4], colour[5],
                   self.__colourise([[1,1],[2,2],[3,3],[4,4]])))
-
+                  
     def __fallback_input(self):
         """ Take an input string and convert to the input list."""
         not_empty = 1
@@ -264,7 +245,30 @@ class Superbrain(object):
                         user_input = user_input[2:]
                     not_empty = 0
                 else:
-                    self.__help()
+                    self.__help()    
+                    
+                    
+    if not no_shapes:
+        def __getchar(self):
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(sys.stdin.fileno())
+                ch = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            return ch
+
+        symbols = [
+            "\u25B2", "\u25C6", "\u25CF", "\u2605",
+            "\u2660", "\u2663", "\u2665", "\u2666"]
+        colours = [
+            "\033[94;2m  \033[0m", "\033[43;2m  \033[0m", "\033[41;2m  \033[0m",
+            "\033[44;2m  \033[0m", "\033[42;2m  \033[0m", "\033[46;2m  \033[0m",
+            "\033[45;2m  \033[0m"]
+
+        a = 0
+        __bracket = 0
 
     def __complex_input(self):
         nope = 1
