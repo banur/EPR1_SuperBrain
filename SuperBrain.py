@@ -13,6 +13,7 @@
 # Superbrain v0.6: working windows in- and output, help text
 # Superbrain v0.7: fixed logic issue
 # Superbrain v0.8: fixed another logic issue, moved UI
+# Superbrain v0.9: fixed windows UI
 __author__ = " "
 
 
@@ -164,8 +165,9 @@ class Superbrain(object):
     def __build_UI(self):
         UI_elements = {"clear":'\033[2J',
                        "header":'\033[6;5HT  1 2 3 4  |  R  C  S',
-                       "intro":"\033[3;3HFind the right code, generated with unique colours and unique shapes!",
-                       "options":"\033[22;25Hoptions: help, new, exit"}
+                       "intro":"\033[3;3HFind the right code, generated" + \
+                       " with unique colours and unique shapes!",
+                       "options":"\033[22;25Hoptions: help, new, quit"}
         print(UI_elements["clear"],UI_elements["header"], UI_elements["intro"])
         if not no_shapes:
             print('\033[7;7H', self.__colourise(self.__tries[-1]))
@@ -209,27 +211,27 @@ class Superbrain(object):
 
     def __help(self):
         if no_shapes:
-            help_text = "\033[6;33HThis is the less comfortable version.\
-                  \033[7;33HTry running with Unicode and proper terminal.\
-                  \033[8;33HInput a single line of eight numbers,\
-                  \033[9;33Halternating colour and shape.\
-                  \033[12;33H1: {0}{8}, 2: {1}{8}, 3: {2}{8}, 4: {3}{8}\
-                  \033[13;33H1: {4}, 2: {5}, 3: {6}, 4: {7}\
-                  \033[15;33HThus 11223344 results in {9}\
-                  \033[16;1H\033[2K\033[16;1H"
+            help_text = "\033[6;33HThis is the less comfortable version." + \
+            "\033[7;33HTry running with Unicode and proper terminal." + \
+            "\033[8;33HInput a single line of eight numbers," + \
+            "\033[9;33Halternating colour and shape." + \
+            "\033[11;33H1: {0}{8}, 2: {1}{8}, 3: {2}{8}, 4: {3}{8}" + \
+            "\033[12;33H1: {4}, 2: {5}, 3: {6}, 4: {7}" + \
+            "\033[14;33HThus 11223344 results in {9}" + \
+            "\033[16;1H\033[2K\033[16;1H"
             if no_colours:
                 colour = self.__d_alt_colour
             else:
                 colour = self.__d_colour
             shape = self.__d_alt_shape
         else:
-            help_text = "\033[6;33H1/2/3/4 to select stone,\
-                         \033[7;33H(c) to rotate colours,\
-                         \033[8;33H(s) to rotate shapes,\
-                         \033[9;33H(g) to guess,\
-                         \033[10;33H(r) to restart,\
-                         \033[11;33H(q) to quit\
-                         \033[16;1H"
+            help_text = "\033[6;33HUse 1/2/3/4 to select stone," + \
+                         "\033[7;33H(c) to rotate colours," + \
+                         "\033[8;33H(s) to rotate shapes," + \
+                         "\033[9;33H(g) to guess," + \
+                         "\033[10;33H(r) to restart," + \
+                         "\033[11;33H(q) to quit" + \
+                         "\033[16;1H"
             colour = self.__d_colour
             shape = self.__d_shape
         
@@ -256,16 +258,20 @@ class Superbrain(object):
                 user_input = re.sub("[^1-4]", "", user_input)
                 if len(user_input) == 8:
                     for num_bracket in range(len(self.__tries[-1])):
-                        self.__tries[-1][num_bracket][0] = int(list(user_input[:2])[:1][0])
-                        self.__tries[-1][num_bracket][1] = int(list(user_input[:2])[1:][0])
+                        self.__tries[-1][num_bracket][0] =\
+                            int(list(user_input[:2])[:1][0])
+                        self.__tries[-1][num_bracket][1] =\
+                            int(list(user_input[:2])[1:][0])
                         user_input = user_input[2:]
                     not_empty = 0
                 else:
-                    self.__help()    
+                    self.__help()
+            print('\033[17;1H\033[2K\033[16;1H')
 
 
     if not no_shapes:
         def __get_char(self, char_count=1):
+            """ Listen to pressed keys and return as string. """
             fd = sys.stdin.fileno()
             old_settings = termios.tcgetattr(fd)
             try:
@@ -274,14 +280,6 @@ class Superbrain(object):
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
             return ch
-
-        symbols = [
-            "\u25B2", "\u25C6", "\u25CF", "\u2605",
-            "\u2660", "\u2663", "\u2665", "\u2666"]
-        colours = [
-            "\033[94;2m  \033[0m", "\033[43;2m  \033[0m", "\033[41;2m  \033[0m",
-            "\033[44;2m  \033[0m", "\033[42;2m  \033[0m", "\033[46;2m  \033[0m",
-            "\033[45;2m  \033[0m"]
 
     def __complex_input(self):
         bracket = 0
@@ -307,7 +305,8 @@ class Superbrain(object):
                     self.__exit_game()
                 elif k == '^':
                     extra_input = input('~')
-                    if extra_input == "IDDQD" or extra_input == "UPUPDOWNDOWNLEFTRIGHTLEFTRIGHTBAS":
+                    if extra_input == "IDDQD" or extra_input ==\
+                    "UPUPDOWNDOWNLEFTRIGHTLEFTRIGHTBASTART":
                         self.__cheat()
                     else:
                         print('\033[17;1H\033[2K\033[16;1H')
